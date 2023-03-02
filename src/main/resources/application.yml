@@ -10,10 +10,18 @@ spring:
           uri: lb://RULE-LITEFLOW
           predicates:
             - Path=/api-a/**
-#        - id: deny-get-method
-#          uri: forward:/deny-get-method
-#          predicates:
-#            - Method=GET
+          filters:
+            - name: ModifyRequestBody
+              args:
+                in-class: java.lang.String
+                out-class: java.lang.String
+                content-type: application/json;utf-8
+                rewrite-function: SecurityRequestFilter
+
+        - id: deny-get-method
+          uri: forward:/deny-get-method
+          predicates:
+            - Method=GET
       discovery:
         locator:
           enabled: true
