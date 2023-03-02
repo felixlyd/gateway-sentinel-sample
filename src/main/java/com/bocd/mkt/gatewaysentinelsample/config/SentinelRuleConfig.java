@@ -32,19 +32,15 @@ import java.util.Set;
 @Slf4j
 public class SentinelRuleConfig implements InitializingBean {
 
-//    @PostConstruct
-//    public void doInit() {
-//        // Prepare some gateway rules and API definitions (only for demo).
-//        // It's recommended to leverage dynamic data source or the Sentinel dashboard to push the rules.
-//
-//        log.info("--------------加载自定义API-------------");
-////        initCustomizedApis();
-//        log.info("--------------加载自定义规则-------------");
-//        initGatewayRules();
-////        initDegradeRules();
-////        initSystemRule();
-//    }
-
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        log.info("--------------加载自定义API-------------");
+//        initCustomizedApis();
+        log.info("--------------加载自定义规则-------------");
+        initGatewayRules();
+        initDegradeRules();
+        initSystemRule();
+    }
     private void initCustomizedApis() {
         Set<ApiDefinition> definitions = new HashSet<>();
         ApiDefinition api1 = new ApiDefinition("rule_api")
@@ -101,15 +97,5 @@ public class SentinelRuleConfig implements InitializingBean {
         rules.add(rule1);
 
         SystemRuleManager.loadRules(rules);
-    }
-
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        log.info("--------------加载自定义API-------------");
-//        initCustomizedApis();
-        log.info("--------------加载自定义规则-------------");
-        initGatewayRules();
-        initDegradeRules();
-        initSystemRule();
     }
 }
