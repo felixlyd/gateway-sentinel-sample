@@ -41,13 +41,14 @@ public interface SmService {
      */
     String sm4DecryptUrlSafe(String encryptStr);
 
+
     /**
      * 验签
-     * @param requestMap 请求报文
+     * @param request 请求报文
      * @param sign 签名
      * @return 是否验证通过
      */
-    boolean verifySign(TreeMap<String, Object> requestMap, String sign);
+    boolean verifySign(String  request, String sign);
 
     /**
      * 验签
@@ -57,12 +58,30 @@ public interface SmService {
      */
     boolean verifySign(HashMap<String, Object> requestMap, String sign);
 
+
+    /**
+     * 验签
+     * @param requestMap 请求报文
+     * @param sign 签名
+     * @return 是否验证通过
+     */
+    boolean verifySign(TreeMap<String, Object> requestMap, String sign);
+
     /**
      * sm3摘要加密 编码基于Base64
      * @param originStr 原始字符串
      * @return 摘要
      */
     String sm3Encrypt(String originStr);
+
+
+    /**
+     * sm3摘要加密 编码基于Base64
+     * @param requestMap 请求报文
+     * @return 摘要
+     */
+    String sm3Encrypt(HashMap<String, Object> requestMap);
+
 
     /**
      * sm3摘要加密 编码基于Base64
@@ -72,23 +91,17 @@ public interface SmService {
     String sm3Encrypt(TreeMap<String, Object> requestMap);
 
     /**
-     * sm3摘要加密 编码基于Base64
+     * 处理请求报文，转换为字符串
      * @param requestMap 请求报文
-     * @return 摘要
+     * @return 字符串
      */
-    String sm3Encrypt(HashMap<String, Object> requestMap);
+    String handleReqMap(HashMap<String, Object> requestMap);
+
 
     /**
-     * 拼接请求报文
+     * 处理请求报文，转换为字符串
      * @param requestMap 请求报文
-     * @return 拼接报文的字符串
+     * @return 字符串
      */
-    String joinRequestMap(TreeMap<String, Object> requestMap);
-
-    /**
-     * 拼接请求报文
-     * @param requestMap 请求报文
-     * @return 拼接报文的字符串
-     */
-    String joinRequestMap(HashMap<String, Object> requestMap);
+    String handleReqMap(TreeMap<String, Object> requestMap);
 }

@@ -4,7 +4,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.SM3;
 import cn.hutool.crypto.symmetric.SM4;
 import com.bocd.mkt.gatewaysentinelsample.service.security.SmService;
-import com.google.common.base.Joiner;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,10 @@ public class SmServiceImpl implements SmService {
     @Autowired
     @Qualifier("sm3")
     private SM3 sm3;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
 
     /**
      * sm4算法加密 编码基于Base64
@@ -93,16 +98,13 @@ public class SmServiceImpl implements SmService {
     /**
      * 验签
      *
-     * @param requestMap 请求报文
-     * @param sign       签名
+     * @param request 请求报文
+     * @param sign    签名
      * @return 是否验证通过
      */
     @Override
-    public boolean verifySign(TreeMap<String, Object> requestMap, String sign) {
-        // 1. 原始报文通过排序、SM3加密得到摘要
-        String digest = sm3Encrypt(requestMap);
-        // 2. 比对上送签名和加密摘要是否相等
-        return StrUtil.equals(digest, sign);
+    public boolean verifySign(String request, String sign) {
+        return StrUtil.equals(request, sign);
     }
 
     /**
@@ -117,7 +119,23 @@ public class SmServiceImpl implements SmService {
         // 1. 原始报文通过排序、处理成字符串、SM3加密得到摘要
         String digest = sm3Encrypt(requestMap);
         // 2. 比对上送签名和加密摘要是否相等
-        return StrUtil.equals(digest, sign);
+        return verifySign(digest, sign);
+    }
+
+
+    /**
+     * 验签
+     *
+     * @param requestMap 请求报文
+     * @param sign       签名
+     * @return 是否验证通过
+     */
+    @Override
+    public boolean verifySign(TreeMap<String, Object> requestMap, String sign) {
+        // 1. 原始报文通过排序、处理成字符串、SM3加密得到摘要
+        String digest = sm3Encrypt(requestMap);
+        // 2. 比对上送签名和加密摘要是否相等
+        return verifySign(digest, sign);
     }
 
     /**
@@ -134,19 +152,6 @@ public class SmServiceImpl implements SmService {
         return new String(Base64.getEncoder().encode(encryptBytes), StandardCharsets.UTF_8);
     }
 
-    /**
-     * sm3摘要加密 编码基于Base64
-     *
-     * @param requestMap 请求报文
-     * @return 摘要
-     */
-    @Override
-    public String sm3Encrypt(TreeMap<String, Object> requestMap) {
-        // 1. 原始报文排序、处理成字符串
-        String originStr = joinRequestMap(requestMap);
-        // 2. 经由SM3加密
-        return sm3Encrypt(originStr);
-    }
 
     /**
      * sm3摘要加密 编码基于Base64
@@ -157,34 +162,55 @@ public class SmServiceImpl implements SmService {
     @Override
     public String sm3Encrypt(HashMap<String, Object> requestMap) {
         // 1. 原始报文排序、处理成字符串
-        String originStr = joinRequestMap(requestMap);
+        String originStr = handleReqMap(requestMap);
         // 2. 经由SM3加密
         return sm3Encrypt(originStr);
     }
 
-    /**
-     * 拼接请求报文
-     *
-     * @param requestMap 请求报文
-     * @return 拼接报文的字符串
-     */
-    @Override
-    public String joinRequestMap(TreeMap<String, Object> requestMap) {
-        // treeMap格式中，key基于ASCII编码排序
-        requestMap.remove("sign");
-        return Joiner.on("&").withKeyValueSeparator("=").join(requestMap);
-    }
 
     /**
-     * 拼接请求报文
+     * sm3摘要加密 编码基于Base64
      *
      * @param requestMap 请求报文
-     * @return 拼接报文的字符串
+     * @return 摘要
      */
     @Override
-    public String joinRequestMap(HashMap<String, Object> requestMap) {
-        // treeMap格式中，key基于ASCII编码排序
-        TreeMap<String, Object> treeMap = new TreeMap<>(requestMap);
-        return joinRequestMap(treeMap);
+    public String sm3Encrypt(TreeMap<String, Object> requestMap) {
+        // 1. 原始报文排序、处理成字符串
+        String originStr = handleReqMap(requestMap);
+        // 2. 经由SM3加密
+        return sm3Encrypt(originStr);
+    }
+
+
+    /**
+     * 处理请求报文，转换为字符串
+     *
+     * @param requestMap 请求报文
+     * @return 字符串
+     */
+    @Override
+    public String handleReqMap(HashMap<String, Object> requestMap) {
+        // treemap基于ASCLL编码排序
+        TreeMap<String ,Object> treeMap = new TreeMap<>(requestMap);
+        return handleReqMap(treeMap);
+    }
+
+
+
+
+    /**
+     * 处理请求报文，转换为字符串
+     *
+     * @param requestMap 请求报文
+     * @return 字符串
+     */
+    @Override
+    public String handleReqMap(TreeMap<String, Object> requestMap) {
+        try {
+            return objectMapper.writeValueAsString(requestMap);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
