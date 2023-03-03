@@ -15,26 +15,29 @@ spring:
       # sentinel是懒加载机制，只有访问过一次的资源才会被监控
       # 取消控制台懒加载，项目启动即连接Sentinel
       eager: true
-      transport:
-        dashboard: localhost:8888
-        port: 8719
-        client-ip: 192.168.65.175
       scg:
         fallback:
           mode: response
           content-type: application/json;charset=UTF-8
           response-status: 429
           response-body: "{\"return_code\":\"FAIL\",\"return_msg\":\"请求过多！\"}"
-
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8080/eureka/
+  config:
+    activate:
+      on-profile: dev
+  jackson:
+    date-format: yyyyMMddHHMMss
+    time-zone: GMT+8
 
 
 server:
   port: 8082
+  servlet:
+    encoding:
+      charset: UTF-8
 
-sm:
-  sm4key: Uh3lIbRvcUfmwTw1/nUFDw==
+
+logging:
+  level:
+    root: info
+
+
