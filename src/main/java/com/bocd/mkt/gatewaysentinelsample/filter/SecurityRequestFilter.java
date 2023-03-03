@@ -1,6 +1,8 @@
 package com.bocd.mkt.gatewaysentinelsample.filter;
 
 import cn.hutool.core.util.StrUtil;
+import com.bocd.mkt.gatewaysentinelsample.constant.EncryptReqFieldEnum;
+import com.bocd.mkt.gatewaysentinelsample.constant.ReqFieldEnum;
 import com.bocd.mkt.gatewaysentinelsample.service.security.DataReplayDefenseService;
 import com.bocd.mkt.gatewaysentinelsample.service.security.SmService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -21,10 +23,11 @@ import java.util.Map;
 @Slf4j
 public class SecurityRequestFilter implements RewriteFunction<String, String> {
 
-    private static final String SIGN_KEY="sign";
-    private static final String DATA_KEY="data";
-    private static final String TIMESTAMP_KEY="timestamp";
-    private static final String NONCE_KEY="nonce";
+    private static final String SIGN = EncryptReqFieldEnum.sign.name();
+    private static final String DATA = EncryptReqFieldEnum.data.name();
+
+    private static final String TIMESTAMP = ReqFieldEnum.timestamp.name();
+    private static final String NONCE = ReqFieldEnum.nonce.name();
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -33,41 +36,48 @@ public class SecurityRequestFilter implements RewriteFunction<String, String> {
     @Autowired
     private DataReplayDefenseService dataReplayDefenseService;
 
+    /**
+     * 处理请求数据
+     *
+     * @param serverWebExchange 请求上下文
+     * @param encryptRequest           请求数据
+     * @return 处理后的请求数据
+     */
     @Override
-    public Publisher<String> apply(ServerWebExchange serverWebExchange, String request) {
+    public Publisher<String> apply(ServerWebExchange serverWebExchange, String encryptRequest) {
 
         // 1. 请求数据为空，直接报错
-        if(StrUtil.isEmpty(request)){
+        if(StrUtil.isEmpty(encryptRequest)){
             throw new RuntimeException("非法请求！请求数据不能为空！");
         }
 
         // 2. 获取请求数据
         // 2.1. 转换为map
-        HashMap<String, String > reqEncryptMap;
+        HashMap<String, String > encryptReqMap;
         try {
-           reqEncryptMap = objectMapper.readValue(request, new TypeReference<HashMap<String , String >>() {});
+           encryptReqMap = objectMapper.readValue(encryptRequest, new TypeReference<HashMap<String , String >>() {});
         } catch (JsonProcessingException e) {
             log.error(e.getMessage(),e.fillInStackTrace());
             throw new RuntimeException("反序列化失败！");
         }
         // 2.2. 空值判断校验
-        if(isKeyExistsAndNotEmpty(reqEncryptMap, SIGN_KEY)){
-            throw new RuntimeException("请求报文中缺少"+SIGN_KEY+"或值为空！");
+        if(isKeyExistsAndNotEmpty(encryptReqMap, SIGN)){
+            throw new RuntimeException("请求报文中缺少"+ SIGN +"或值为空！");
         }
-        if(isKeyExistsAndNotEmpty(reqEncryptMap, DATA_KEY)){
-            throw new RuntimeException("请求报文中缺少"+DATA_KEY+"或值为空！");
+        if(isKeyExistsAndNotEmpty(encryptReqMap, DATA)){
+            throw new RuntimeException("请求报文中缺少"+ DATA +"或值为空！");
         }
         // 2.3. 获取签名和请求数据
-        String sign = reqEncryptMap.get(SIGN_KEY);
-        String data = reqEncryptMap.get(DATA_KEY);
+        String sign = encryptReqMap.get(SIGN);
+        String data = encryptReqMap.get(DATA);
         // 2.4. 解密请求数据，获得请求数据json字符串
         log.info("解密--");
-        String reqJson = smService.sm4Decrypt(data);
+        String jsonReq = smService.sm4Decrypt(data);
 
         // 3. 数据签名验证
         log.info("签名验证--");
-        String reqSign = smService.sm3Encrypt(reqJson);
-        boolean isSignLegal = smService.verifySign(reqSign, sign);
+        String sm3data = smService.sm3Encrypt(jsonReq);
+        boolean isSignLegal = smService.verifySign(sm3data, sign);
         if(!isSignLegal){
             throw new RuntimeException("数据签名不通过，数据不合法！");
         }
@@ -75,7 +85,7 @@ public class SecurityRequestFilter implements RewriteFunction<String, String> {
         // 4. 请求数据反序列化成map对象
         HashMap<String, Object> requestMap;
         try {
-            requestMap = objectMapper.readValue(reqJson, new TypeReference<HashMap<String , Object>>() {});
+            requestMap = objectMapper.readValue(jsonReq, new TypeReference<HashMap<String , Object>>() {});
         } catch (JsonProcessingException e) {
             log.error(e.getMessage(),e.fillInStackTrace());
             throw new RuntimeException("反序列化失败！");
@@ -83,26 +93,26 @@ public class SecurityRequestFilter implements RewriteFunction<String, String> {
 
         // 5. 数据防重放验证
         log.info("数据防重放验证--");
-        if(requestMap.containsKey(TIMESTAMP_KEY)&&requestMap.containsKey(NONCE_KEY)){
-            Long timestamp = Long.valueOf(String.valueOf(requestMap.get(TIMESTAMP_KEY)));
-            String nonce = String.valueOf(requestMap.get(NONCE_KEY));
+        if(requestMap.containsKey(TIMESTAMP)&&requestMap.containsKey(NONCE)){
+            Long timestamp = Long.valueOf(String.valueOf(requestMap.get(TIMESTAMP)));
+            String nonce = String.valueOf(requestMap.get(NONCE));
             boolean isLegal = dataReplayDefenseService.isNotDataReplay(timestamp, nonce);
             if(!isLegal){
                 throw new RuntimeException("该数据已经处理过，请勿提交重复数据！");
             }
         }else {
-            throw new RuntimeException("请求报文中缺少"+TIMESTAMP_KEY+"和"+NONCE_KEY+"!");
+            throw new RuntimeException("请求报文中缺少"+ TIMESTAMP +"和"+ NONCE +"!");
         }
 
         // 6. 转换为字符串
-        String originRequest;
+        String decryptRequest;
         try {
-            originRequest = objectMapper.writeValueAsString(requestMap);
+            decryptRequest = objectMapper.writeValueAsString(requestMap);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
 
-        return Mono.just(originRequest);
+        return Mono.just(decryptRequest);
     }
 
     private boolean isKeyExistsAndNotEmpty(Map<String, String> map, String key){

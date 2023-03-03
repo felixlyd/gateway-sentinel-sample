@@ -4,15 +4,10 @@ spring:
   cloud:
     gateway:
       routes:
-        - id: test
-          uri: lb://RULE-LITEFLOW
+        - id: deny-get-method
+          uri: forward:/deny-get-method
           predicates:
-            - Path=/api-a/**
-
-#        - id: deny-get-method
-#          uri: forward:/deny-get-method
-#          predicates:
-#            - Method=GET
+            - Method=GET
       discovery:
         locator:
           enabled: true
