@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Component
@@ -53,9 +53,9 @@ public class SecurityRequestFilter implements RewriteFunction<String, String> {
 
         // 2. 获取请求数据
         // 2.1. 转换为map
-        HashMap<String, String > encryptReqMap;
+        LinkedHashMap<String, String > encryptReqMap;
         try {
-           encryptReqMap = objectMapper.readValue(encryptRequest, new TypeReference<HashMap<String , String >>() {});
+           encryptReqMap = objectMapper.readValue(encryptRequest, new TypeReference<LinkedHashMap<String , String >>() {});
         } catch (JsonProcessingException e) {
             log.error(e.getMessage(),e.fillInStackTrace());
             throw new RuntimeException("反序列化失败！");
@@ -83,9 +83,9 @@ public class SecurityRequestFilter implements RewriteFunction<String, String> {
         }
 
         // 4. 请求数据反序列化成map对象
-        HashMap<String, Object> requestMap;
+        LinkedHashMap<String, Object> requestMap;
         try {
-            requestMap = objectMapper.readValue(jsonReq, new TypeReference<HashMap<String , Object>>() {});
+            requestMap = objectMapper.readValue(jsonReq, new TypeReference<LinkedHashMap<String , Object>>() {});
         } catch (JsonProcessingException e) {
             log.error(e.getMessage(),e.fillInStackTrace());
             throw new RuntimeException("反序列化失败！");

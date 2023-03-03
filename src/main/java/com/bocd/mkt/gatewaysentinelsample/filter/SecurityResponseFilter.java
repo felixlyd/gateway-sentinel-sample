@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 @Component
 @Slf4j
@@ -40,21 +40,20 @@ public class SecurityResponseFilter implements RewriteFunction<String, String> {
     @Override
     public Publisher<String> apply(ServerWebExchange serverWebExchange, String decryptResponse) {
         // 1. 准备加密响应map
-        HashMap<String , String > encryptRespMap = new HashMap<>();
+        LinkedHashMap<String , String > encryptRespMap = new LinkedHashMap<>();
 
         // 2. 响应为空，响应map中设值为失败，加密后装入加密响应map的data字段中
         if(StrUtil.isEmpty(decryptResponse)){
-            encryptRespMap.put(DATA,"");
-            encryptRespMap.put(RETURN_MSG,"原始响应数据为空！");
             encryptRespMap.put(RETURN_CODE, ReturnCodeEnum.FAIL.getValue());
+            encryptRespMap.put(RETURN_MSG,"原始响应数据为空！");
         }
 
         // 3. 响应数据不为空，处理响应数据
         String encrypt = smService.sm4Encrypt(decryptResponse);
 
-        encryptRespMap.put(DATA, encrypt);
-        encryptRespMap.put(RETURN_MSG, "");
         encryptRespMap.put(RETURN_CODE, ReturnCodeEnum.SUCCESS.getValue());
+        encryptRespMap.put(RETURN_MSG, "成功！");
+        encryptRespMap.put(DATA, encrypt);
 
         // 4. 序列化加密响应map，并返回
         try {
