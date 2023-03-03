@@ -98,7 +98,7 @@ public class SecurityRequestFilter implements RewriteFunction<String, String> {
             String nonce = String.valueOf(requestMap.get(NONCE));
             boolean isLegal = dataReplayDefenseService.isNotDataReplay(timestamp, nonce);
             if(!isLegal){
-                throw new RuntimeException("该数据已经处理过，请勿提交重复数据！");
+                throw new RuntimeException("数据防重放验证失败！");
             }
         }else {
             throw new RuntimeException("请求报文中缺少"+ TIMESTAMP +"和"+ NONCE +"!");
