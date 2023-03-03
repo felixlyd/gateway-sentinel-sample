@@ -1,7 +1,12 @@
 package com.bocd.mkt.gatewaysentinelsample.config;
 
+import com.alibaba.csp.sentinel.adapter.gateway.sc.callback.BlockRequestHandler;
+import com.alibaba.csp.sentinel.adapter.gateway.sc.callback.GatewayCallbackManager;
+import com.bocd.mkt.gatewaysentinelsample.constant.EncryptRespFieldEnum;
+import com.bocd.mkt.gatewaysentinelsample.constant.ReturnCodeEnum;
 import com.bocd.mkt.gatewaysentinelsample.error.GatewayGlobalErrorAttributes;
 import com.bocd.mkt.gatewaysentinelsample.error.GatewayGlobalErrorExceptionHandler;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -16,10 +21,17 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.web.reactive.config.WebFluxConfigurer;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.reactive.result.view.ViewResolver;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
 
+import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -33,7 +45,10 @@ import java.util.stream.Collectors;
 @ConditionalOnClass(WebFluxConfigurer.class)
 @AutoConfigureBefore(WebFluxAutoConfiguration.class)
 @EnableConfigurationProperties({ ServerProperties.class, WebProperties.class })
-public class GatewayGlobalErrorHandlerConfig {
+public class GatewayGlobalErrorHandlerConfig implements InitializingBean {
+
+    private static final String RETURN_CODE = EncryptRespFieldEnum.return_code.name();
+    private static final String RETURN_MSG = EncryptRespFieldEnum.return_msg.name();
 
     private final ServerProperties serverProperties;
 
@@ -57,5 +72,35 @@ public class GatewayGlobalErrorHandlerConfig {
     @Bean
     public ErrorAttributes errorAttributes(){
         return new GatewayGlobalErrorAttributes();
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        BlockRequestHandler blockRequestHandler = new BlockRequestHandler() {
+            @Override
+            public Mono<ServerResponse> handleRequest(ServerWebExchange exchange, Throwable ex) {
+                String exceptionClassName = ex.getClass().getName();
+                LinkedHashMap<String, String> map = new LinkedHashMap<>();
+                map.put(RETURN_CODE, ReturnCodeEnum.FAIL.getValue());
+                HttpStatus status;
+                if(exceptionClassName.equals("com.alibaba.csp.sentinel.slots.block.degrade.DegradeException")){
+                    status = HttpStatus.SERVICE_UNAVAILABLE;
+                    map.put(RETURN_MSG, "服务降级！");
+                }else if(exceptionClassName.equals("com.alibaba.csp.sentinel.slots.block.flow.FlowException")||
+                        exceptionClassName.equals("com.alibaba.csp.sentinel.slots.block.flow.param.ParamFlowException")){
+                    status = HttpStatus.TOO_MANY_REQUESTS;
+                    map.put(RETURN_MSG, "访问过快！");
+                } else{
+                    status = HttpStatus.INTERNAL_SERVER_ERROR;
+                    map.put(RETURN_MSG, ex.getMessage());
+                }
+
+                return ServerResponse.status(status)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(BodyInserters.fromValue(map));
+            }
+        };
+
+        GatewayCallbackManager.setBlockHandler(blockRequestHandler);
     }
 }

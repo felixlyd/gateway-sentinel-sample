@@ -21,13 +21,19 @@ public class GatewayRoutesConfig {
     @Bean
     public RouteLocator routeLocator(RouteLocatorBuilder builder){
 
+        // 配置路由
         return builder.routes().route("test", r -> r
-                        .path("/api-a/**")
-                        .filters(f -> f
-                                .modifyRequestBody(String.class,String.class, MediaType.APPLICATION_JSON_VALUE, securityRequestFilter)
-                                .modifyResponseBody(String.class,String.class, MediaType.APPLICATION_JSON_VALUE, securityResponseFilter)
-                        )
-                        .uri("lb://RULE-LITEFLOW")
+                // 匹配路径
+                .path("/api-a/**")
+                // 过滤器
+                .filters(f -> f
+                        // 修改请求数据过滤器
+                        .modifyRequestBody(String.class,String.class, MediaType.APPLICATION_JSON_VALUE, securityRequestFilter)
+                        // 修改响应数据过滤器
+                        .modifyResponseBody(String.class,String.class, MediaType.APPLICATION_JSON_VALUE, securityResponseFilter)
+                )
+                // 转发uri
+                .uri("lb://RULE-LITEFLOW")
         ).build();
     }
 }
